@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNet.FileProviders;
 using Microsoft.AspNet.Hosting;
@@ -101,6 +102,103 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                             tagHelper.FallbackSrcInclude = "*.css";
                             tagHelper.FallbackSrcExclude = "*.min.css";
                             tagHelper.FallbackTestExpression = "isavailable()";
+                        }
+                    },
+                    // File Version
+                    {
+                        new Dictionary<string, object>
+                        {
+                            ["asp-file-version"] = "true"
+                        },
+                        tagHelper =>
+                        {
+                            tagHelper.FileVersion = "true";
+                        }
+                    },
+                    {
+                        new Dictionary<string, object>
+                        {
+                            ["asp-src-include"] = "*.js",
+                            ["asp-file-version"] = "true"
+                        },
+                        tagHelper =>
+                        {
+                            tagHelper.SrcInclude = "*.js";
+                            tagHelper.FileVersion = "true";
+                        }
+                    },
+                    {
+                        new Dictionary<string, object>
+                        {
+                            ["asp-src-include"] = "*.js",
+                            ["asp-src-exclude"] = "*.min.js",
+                            ["asp-file-version"] = "true"
+                        },
+                        tagHelper =>
+                        {
+                            tagHelper.SrcInclude = "*.js";
+                            tagHelper.SrcExclude = "*.min.js";
+                            tagHelper.FileVersion = "true";
+                        }
+                    },
+                    {
+                        new Dictionary<string, object>
+                        {
+                            ["asp-fallback-src"] = "test.js",
+                            ["asp-fallback-test"] = "isavailable()",
+                            ["asp-file-version"] = "true"
+                        },
+                        tagHelper =>
+                        {
+                            tagHelper.FallbackSrc = "test.js";
+                            tagHelper.FallbackTestExpression = "isavailable()";
+                            tagHelper.FileVersion = "true";
+                        }
+                    },
+                    {
+                        new Dictionary<string, object>
+                        {
+                            ["asp-fallback-src-include"] = "*.js",
+                            ["asp-fallback-test"] = "isavailable()",
+                            ["asp-file-version"] = "true"
+                        },
+                        tagHelper =>
+                        {
+                            tagHelper.FallbackSrcInclude = "*.css";
+                            tagHelper.FallbackTestExpression = "isavailable()";
+                            tagHelper.FileVersion = "true";
+                        }
+                    },
+                    {
+                        new Dictionary<string, object>
+                        {
+                            ["asp-fallback-src"] = "test.js",
+                            ["asp-fallback-src-include"] = "*.js",
+                            ["asp-fallback-test"] = "isavailable()",
+                            ["asp-file-version"] = "true"
+                        },
+                        tagHelper =>
+                        {
+                            tagHelper.FallbackSrc = "test.js";
+                            tagHelper.FallbackSrcInclude = "*.css";
+                            tagHelper.FallbackTestExpression = "isavailable()";
+                            tagHelper.FileVersion = "true";
+                        }
+                    },
+                    {
+                        new Dictionary<string, object>
+                        {
+                            ["asp-fallback-src-include"] = "*.js",
+                            ["asp-fallback-src-exclude"] = "*.min.js",
+                            ["asp-fallback-test"] = "isavailable()",
+                            ["asp-file-version"] = "true"
+                        },
+                        tagHelper =>
+                        {
+                            tagHelper.FallbackSrcInclude = "*.css";
+                            tagHelper.FallbackSrcExclude = "*.min.css";
+                            tagHelper.FallbackTestExpression = "isavailable()";
+                            tagHelper.FileVersion = "true";
                         }
                     }
                 };
@@ -439,6 +537,127 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                 "<script src=\"HtmlEncode[[/common.js]]\"></script>", output.Content.GetContent());
         }
 
+        [Fact]
+        public async Task RenderScriptTags_Src_WithFileVersion()
+        {
+            // Arrange
+            var context = MakeTagHelperContext(
+                attributes: new Dictionary<string, object>
+                {
+                    ["src"] = "/js/site.js",
+                    ["asp-file-version"] = "true"
+                });
+            var output = MakeTagHelperOutput("script", attributes: new Dictionary<string, string>
+            {
+                ["src"] = "/js/site.js"
+            });
+
+            var logger = new Mock<ILogger<ScriptTagHelper>>();
+            var hostingEnvironment = MakeHostingEnvironment();
+            var viewContext = MakeViewContext();
+
+            var helper = new ScriptTagHelper
+            {
+                Logger = logger.Object,
+                HostingEnvironment = hostingEnvironment,
+                ViewContext = viewContext,
+                FileVersion = "true",
+                HtmlEncoder = new TestHtmlEncoder()
+            };
+
+            // Act
+            await helper.ProcessAsync(context, output);
+
+            // Assert
+            Assert.Equal(
+                "<script src=\"HtmlEncode[[/js/site.js]]?v=5juh_W1DkEaXNDo3Ps-5NFcSHkssUa-XJ4xDHo7IVUU\">" +
+                "</script>", output.Content.GetContent());
+        }
+
+        [Fact]
+        public async Task RenderScriptTags_FallbackSrc_WithFileVersion()
+        {
+            // Arrange
+            var context = MakeTagHelperContext(
+                attributes: new Dictionary<string, object>
+                {
+                    ["src"] = "/js/site.js",
+                    ["asp-fallback-src-include"] = "fallback.js",
+                    ["asp-fallback-test"] = "isavailable()",
+                    ["asp-file-version"] = "true"
+                });
+            var output = MakeTagHelperOutput("script", attributes: new Dictionary<string, string>
+            {
+                ["src"] = "/js/site.js"
+            });
+
+            var logger = new Mock<ILogger<ScriptTagHelper>>();
+            var hostingEnvironment = MakeHostingEnvironment();
+            var viewContext = MakeViewContext();
+
+            var helper = new ScriptTagHelper
+            {
+                Logger = logger.Object,
+                HostingEnvironment = hostingEnvironment,
+                ViewContext = viewContext,
+                FallbackSrc = "fallback.js",
+                FallbackTestExpression = "isavailable()",
+                FileVersion = "true",
+                HtmlEncoder = new TestHtmlEncoder()
+            };
+
+            // Act
+            await helper.ProcessAsync(context, output);
+
+            // Assert
+            Assert.Equal(
+                "<script src=\"HtmlEncode[[/js/site.js]]?v=5juh_W1DkEaXNDo3Ps-5NFcSHkssUa-XJ4xDHo7IVUU\">" +
+                "</script>\r\n<script>(isavailable()||document.write(\"<script src=\\\"HtmlEncode[[fallback.js]]" +
+                "?v=5juh_W1DkEaXNDo3Ps-5NFcSHkssUa-XJ4xDHo7IVUU\\\"><\\/script>\"));</script>",
+                output.Content.GetContent());
+        }
+
+        [Fact]
+        public async Task RenderScriptTags_GlobbedSrc_WithFileVersion()
+        {
+            // Arrange
+            var context = MakeTagHelperContext(
+                attributes: new Dictionary<string, object>
+                {
+                    ["src"] = "/js/site.js",
+                    ["asp-src-include"] = "*.js",
+                    ["asp-file-version"] = "true"
+                });
+            var output = MakeTagHelperOutput("script", attributes: new Dictionary<string, string>
+            {
+                ["src"] = "/js/site.js"
+            });
+            var logger = new Mock<ILogger<ScriptTagHelper>>();
+            var hostingEnvironment = MakeHostingEnvironment();
+            var viewContext = MakeViewContext();
+            var globbingUrlBuilder = new Mock<GlobbingUrlBuilder>();
+            globbingUrlBuilder.Setup(g => g.BuildUrlList("/js/site.js", "*.js", null))
+                .Returns(new[] { "/js/site.js", "/common.js" });
+            var helper = new ScriptTagHelper
+            {
+                GlobbingUrlBuilder = globbingUrlBuilder.Object,
+                Logger = logger.Object,
+                HostingEnvironment = hostingEnvironment,
+                ViewContext = viewContext,
+                SrcInclude = "*.js",
+                FileVersion = "true",
+                HtmlEncoder = new TestHtmlEncoder()
+            };
+
+            // Act
+            await helper.ProcessAsync(context, output);
+
+            // Assert
+            Assert.Equal("<script src=\"HtmlEncode[[/js/site.js]]?v=5juh_W1DkEaXNDo3Ps-5NFcSHkssUa-XJ4xDHo7IVUU\">" +
+                "</script><script src=\"HtmlEncode[[/common.js]]?v=5juh_W1DkEaXNDo3Ps-5NFcSHkssUa-XJ4xDHo7IVUU\">" +
+                "</script>", output.Content.GetContent());
+        }
+
         private TagHelperContext MakeTagHelperContext(
             IDictionary<string, object> attributes = null,
             string content = null)
@@ -489,9 +708,15 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
             var emptyDirectoryContents = new Mock<IDirectoryContents>();
             emptyDirectoryContents.Setup(dc => dc.GetEnumerator())
                 .Returns(Enumerable.Empty<IFileInfo>().GetEnumerator());
+            var mockFile = new Mock<IFileInfo>();
+            mockFile
+                .Setup(m => m.CreateReadStream())
+                .Returns(() => new MemoryStream(Encoding.UTF8.GetBytes("Hello World!")));
             var mockFileProvider = new Mock<IFileProvider>();
             mockFileProvider.Setup(fp => fp.GetDirectoryContents(It.IsAny<string>()))
                 .Returns(emptyDirectoryContents.Object);
+            mockFileProvider.Setup(fp => fp.GetFileInfo(It.IsAny<string>()))
+                .Returns(mockFile.Object);
             var hostingEnvironment = new Mock<IHostingEnvironment>();
             hostingEnvironment.Setup(h => h.WebRootFileProvider).Returns(mockFileProvider.Object);
 

@@ -105,5 +105,17 @@
     <script src="~/site.js" asp-src-include="**/site.js">
         // Globbed script tag with existing file and static src should dedupe
     </script>
+
+    <script src="~/blank.js" asp-fallback-src="~/site.js" asp-fallback-test="false" asp-file-version="true">
+        // TagHelper script with comment in body, and file version.
+    </script>
+
+    <script src="~/blank.js" asp-fallback-src-include="**/site.js" asp-fallback-test="false" asp-file-version="true">
+        // Fallback to globbed src with file version.
+    </script>
+
+    <script src="~/site.js" asp-file-version="true">
+        // Regular script with comment in body, and file version.
+    </script>
 </body>
 </html>

@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNet.FileProviders;
 using Microsoft.AspNet.Hosting;
@@ -81,6 +82,79 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                             tagHelper.FallbackTestClass = "hidden";
                             tagHelper.FallbackTestProperty = "visibility";
                             tagHelper.FallbackTestValue = "hidden";
+                        }
+                    },
+                    // File Version
+                    {
+                        new Dictionary<string, object>
+                        {
+                            ["asp-file-version"] = "true"
+                        },
+                        tagHelper =>
+                        {
+                            tagHelper.FileVersion = "true";
+                        }
+                    },
+                    {
+                        new Dictionary<string, object>
+                        {
+                            ["asp-href-include"] = "*.css",
+                            ["asp-file-version"] = "true"
+                        },
+                        tagHelper =>
+                        {
+                            tagHelper.HrefInclude = "*.css";
+                            tagHelper.FileVersion = "true";
+                        }
+                    },
+                    {
+                        new Dictionary<string, object>
+                        {
+                            ["asp-href-include"] = "*.css",
+                            ["asp-href-exclude"] = "*.min.css",
+                            ["asp-file-version"] = "true"
+                        },
+                        tagHelper =>
+                        {
+                            tagHelper.HrefInclude = "*.css";
+                            tagHelper.HrefExclude = "*.min.css";
+                            tagHelper.FileVersion = "true";
+                        }
+                    },
+                    {
+                        new Dictionary<string, object>
+                        {
+                            ["asp-fallback-href"] = "test.css",
+                            ["asp-fallback-test-class"] = "hidden",
+                            ["asp-fallback-test-property"] = "visibility",
+                            ["asp-fallback-test-value"] = "hidden",
+                            ["asp-file-version"] = "true"
+                        },
+                        tagHelper =>
+                        {
+                            tagHelper.FallbackHref = "test.css";
+                            tagHelper.FallbackTestClass = "hidden";
+                            tagHelper.FallbackTestProperty = "visibility";
+                            tagHelper.FallbackTestValue = "hidden";
+                            tagHelper.FileVersion = "true";
+                        }
+                    },
+                    {
+                        new Dictionary<string, object>
+                        {
+                            ["asp-fallback-href-include"] = "*.css",
+                            ["asp-fallback-test-class"] = "hidden",
+                            ["asp-fallback-test-property"] = "visibility",
+                            ["asp-fallback-test-value"] = "hidden",
+                            ["asp-file-version"] = "true"
+                        },
+                        tagHelper =>
+                        {
+                            tagHelper.FallbackHrefInclude = "*.css";
+                            tagHelper.FallbackTestClass = "hidden";
+                            tagHelper.FallbackTestProperty = "visibility";
+                            tagHelper.FallbackTestValue = "hidden";
+                            tagHelper.FileVersion = "true";
                         }
                     }
                 };
@@ -366,6 +440,86 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                          "<link href=\"HtmlEncode[[/base.css]]\" rel=\"stylesheet\" />", output.Content.GetContent());
         }
 
+        [Fact]
+        public void RendersLinkTags_AddsFileVersion()
+        {
+            // Arrange
+            var context = MakeTagHelperContext(
+                attributes: new Dictionary<string, object>
+                {
+                    ["href"] = "/css/site.css",
+                    ["rel"] = "stylesheet",
+                    ["asp-file-version"] = "true"
+                });
+            var output = MakeTagHelperOutput("link", attributes: new Dictionary<string, string>
+            {
+                ["href"] = "/css/site.css",
+                ["rel"] = "stylesheet"
+            });
+            var logger = new Mock<ILogger<LinkTagHelper>>();
+            var hostingEnvironment = MakeHostingEnvironment();
+            var viewContext = MakeViewContext();
+            var helper = new LinkTagHelper
+            {
+                HtmlEncoder = new TestHtmlEncoder(),
+                Logger = logger.Object,
+                HostingEnvironment = hostingEnvironment,
+                ViewContext = viewContext,
+                HrefInclude = "**/*.css",
+                FileVersion = "true"
+            };
+
+            // Act
+            helper.Process(context, output);
+
+            // Assert
+            Assert.Equal("<link href=\"HtmlEncode[[/css/site.css]]?v=5juh_W1DkEaXNDo3Ps-5NFcSHkssUa-XJ4xDHo7IVUU\"" +
+                " rel=\"stylesheet\" />", output.Content.GetContent());
+        }
+
+        [Fact]
+        public void RendersLinkTags_GlobbedHref_AddsFileVersion()
+        {
+            // Arrange
+            var context = MakeTagHelperContext(
+                attributes: new Dictionary<string, object>
+                {
+                    ["href"] = "/css/site.css",
+                    ["rel"] = "stylesheet",
+                    ["asp-href-include"] = "**/*.css",
+                    ["asp-file-version"] = "true"
+                });
+            var output = MakeTagHelperOutput("link", attributes: new Dictionary<string, string>
+            {
+                ["href"] = "/css/site.css",
+                ["rel"] = "stylesheet"
+            });
+            var logger = new Mock<ILogger<LinkTagHelper>>();
+            var hostingEnvironment = MakeHostingEnvironment();
+            var viewContext = MakeViewContext();
+            var globbingUrlBuilder = new Mock<GlobbingUrlBuilder>();
+            globbingUrlBuilder.Setup(g => g.BuildUrlList("/css/site.css", "**/*.css", null))
+                .Returns(new[] { "/css/site.css", "/base.css" });
+            var helper = new LinkTagHelper
+            {
+                HtmlEncoder = new TestHtmlEncoder(),
+                GlobbingUrlBuilder = globbingUrlBuilder.Object,
+                Logger = logger.Object,
+                HostingEnvironment = hostingEnvironment,
+                ViewContext = viewContext,
+                HrefInclude = "**/*.css",
+                FileVersion = "true"
+            };
+
+            // Act
+            helper.Process(context, output);
+            
+            // Assert
+            Assert.Equal("<link href=\"HtmlEncode[[/css/site.css]]?v=5juh_W1DkEaXNDo3Ps-5NFcSHkssUa-XJ4xDHo7IVUU\"" +
+                " rel=\"stylesheet\" /><link href=\"HtmlEncode[[/base.css]]" +
+                "?v=5juh_W1DkEaXNDo3Ps-5NFcSHkssUa-XJ4xDHo7IVUU\" rel=\"stylesheet\" />", output.Content.GetContent());
+        }
+
         private static ViewContext MakeViewContext()
         {
             var actionContext = new ActionContext(new DefaultHttpContext(), new RouteData(), new ActionDescriptor());
@@ -411,9 +565,15 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
             var emptyDirectoryContents = new Mock<IDirectoryContents>();
             emptyDirectoryContents.Setup(dc => dc.GetEnumerator())
                 .Returns(Enumerable.Empty<IFileInfo>().GetEnumerator());
+            var mockFile = new Mock<IFileInfo>();
+            mockFile
+                .Setup(m => m.CreateReadStream())
+                .Returns(() => new MemoryStream(Encoding.UTF8.GetBytes("Hello World!")));
             var mockFileProvider = new Mock<IFileProvider>();
             mockFileProvider.Setup(fp => fp.GetDirectoryContents(It.IsAny<string>()))
                 .Returns(emptyDirectoryContents.Object);
+            mockFileProvider.Setup(fp => fp.GetFileInfo(It.IsAny<string>()))
+                .Returns(mockFile.Object);
             var hostingEnvironment = new Mock<IHostingEnvironment>();
             hostingEnvironment.Setup(h => h.WebRootFileProvider).Returns(mockFileProvider.Object);
 

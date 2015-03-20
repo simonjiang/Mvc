@@ -4,11 +4,15 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
+using Microsoft.AspNet.FileProviders;
 using Microsoft.AspNet.Hosting;
 using Microsoft.AspNet.Mvc.TagHelpers.Internal;
 using Microsoft.AspNet.Razor.Runtime.TagHelpers;
+using Microsoft.AspNet.WebUtilities;
 using Microsoft.Framework.Caching.Memory;
 using Microsoft.Framework.Logging;
 using Microsoft.Framework.WebEncoders;
@@ -31,12 +35,15 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
         private const string FallbackSrcExcludeAttributeName = "asp-fallback-src-exclude";
         private const string FallbackTestExpressionAttributeName = "asp-fallback-test";
         private const string SrcAttributeName = "src";
+        private const string FileVersionAttributeName = "asp-file-version";
 
         private static readonly ModeAttributes<Mode>[] ModeDetails = new[] {
+            // Regular src with file version alone
+            ModeAttributes.Create(Mode.FileVersion, new[] { FileVersionAttributeName }),
             // Globbed src (include only)
             ModeAttributes.Create(Mode.GlobbedSrc, new [] { SrcIncludeAttributeName }),
             // Globbed src (include & exclude)
-            ModeAttributes.Create(Mode.GlobbedSrc, new [] { SrcIncludeAttributeName, SrcExcludeAttributeName }),
+            ModeAttributes.Create(Mode.GlobbedSrc, new [] { SrcIncludeAttributeName, SrcExcludeAttributeName}),
             // Fallback with static src
             ModeAttributes.Create(
                 Mode.Fallback, new[]
@@ -62,14 +69,18 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
         private enum Mode
         {
             /// <summary>
+            /// Just adding a file version for the src.
+            /// </summary>
+            FileVersion = 0,
+            /// <summary>
             /// Just performing file globbing search for the src, rendering a separate &lt;script&gt; for each match.
             /// </summary>
-            GlobbedSrc = 0,
+            GlobbedSrc = 1,
             /// <summary>
             /// Rendering a fallback block if primary javascript fails to load. Will also do globbing for both the
             /// primary and fallback srcs if the appropriate properties are set.
             /// </summary>
-            Fallback = 1
+            Fallback = 2
         }
 
         /// <summary>
@@ -92,6 +103,12 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
         /// </summary>
         [HtmlAttributeName(FallbackSrcAttributeName)]
         public string FallbackSrc { get; set; }
+
+        /// <summary>
+        /// Value indicating if file version should be appended to src urls.
+        /// </summary>
+        [HtmlAttributeName(FileVersionAttributeName)]
+        public string FileVersion { get; set; }
 
         /// <summary>
         /// A comma separated list of globbed file patterns of JavaScript scripts to fallback to in the case the
@@ -162,7 +179,11 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
             var builder = new DefaultTagHelperContent();
             var originalContent = await context.GetChildContentAsync();
 
-            if (mode == Mode.Fallback && string.IsNullOrEmpty(SrcInclude))
+            if (mode == Mode.FileVersion)
+            {
+                BuildScriptTag(originalContent, attributes, builder);
+            }
+            else if (mode == Mode.Fallback && string.IsNullOrEmpty(SrcInclude))
             {
                 // No globbing to do, just build a <script /> tag to match the original one in the source file
                 BuildScriptTag(originalContent, attributes, builder);
@@ -196,7 +217,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
 
             foreach (var url in urls)
             {
-                attributes["src"] = HtmlEncoder.HtmlEncode(url);
+                attributes["src"] = url;
                 var content =
                     string.Equals(url, staticSrc, StringComparison.OrdinalIgnoreCase) ? originalContent : null;
                 BuildScriptTag(content, attributes, builder);
@@ -223,7 +244,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
 
                     if (!attributes.ContainsKey("src"))
                     {
-                        AppendSrc(builder, "src", src);
+                        AppendSrc(builder, "src", src, escapeQuotes: true);
                     }
 
                     foreach (var attribute in attributes)
@@ -241,7 +262,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                         }
                         else
                         {
-                            AppendSrc(builder, attribute.Key, src);
+                            AppendSrc(builder, attribute.Key, src, escapeQuotes: true);
                         }
                     }
 
@@ -263,7 +284,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
             }
         }
 
-        private static void BuildScriptTag(
+        private void BuildScriptTag(
             TagHelperContent content,
             IDictionary<string, string> attributes,
             TagHelperContent builder)
@@ -272,8 +293,15 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
 
             foreach (var attribute in attributes)
             {
-                builder.Append(
-                    string.Format(CultureInfo.InvariantCulture, " {0}=\"{1}\"", attribute.Key, attribute.Value));
+                if (attribute.Key.Equals(SrcAttributeName, StringComparison.OrdinalIgnoreCase))
+                {
+                    AppendSrc(builder, attribute.Key, attribute.Value, escapeQuotes: false);
+                }
+                else
+                {
+                    builder.Append(
+                        string.Format(CultureInfo.InvariantCulture, " {0}=\"{1}\"", attribute.Key, attribute.Value));
+                }
             }
 
             builder.Append(">")
@@ -281,15 +309,62 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                    .Append("</script>");
         }
 
-        private void AppendSrc(TagHelperContent content, string srcKey, string srcValue)
+        private void AppendSrc(TagHelperContent content, string srcKey, string srcValue, bool escapeQuotes)
         {
             // Append src attribute in the original place and replace the content the fallback content
             // No need to encode the key because we know it is "src".
-            content.Append(" ")
-                   .Append(srcKey)
-                   .Append("=\\\"")
-                   .Append(HtmlEncoder.HtmlEncode(srcValue))
-                   .Append("\\\"");
+            string formatter = escapeQuotes ? " {0}=\\\"{1}" : " {0}=\"{1}";
+            string fileVersion = string.Empty;
+            if (FileVersion == "true")
+            {
+                fileVersion = GetFileContentEncodedString(srcValue);
+                // This is the case if there was any exception thrown when reading the file.
+                if (fileVersion != string.Empty)
+                {
+                    formatter += "?v={2}";
+                }
+            }
+
+            formatter += escapeQuotes ? "\\\"" : "\"";
+
+            content.Append(
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    formatter,
+                    srcKey,
+                    HtmlEncoder.HtmlEncode(srcValue),
+                    fileVersion));
+        }
+
+        private string GetFileContentEncodedString(string filePath)
+        {
+            var fileContents = ReadFileContents(HostingEnvironment.WebRootFileProvider.GetFileInfo(filePath));
+            if (fileContents != null)
+            {
+                using (var sha256 = SHA256.Create())
+                {
+                    var hash = sha256.ComputeHash(System.Text.Encoding.Unicode.GetBytes(fileContents));
+                    return WebEncoders.Base64UrlEncode(hash);
+                }
+            }
+
+            return string.Empty;
+        }
+
+        private string ReadFileContents(IFileInfo fileInfo)
+        {
+            try
+            {
+                using (var reader = new StreamReader(fileInfo.CreateReadStream()))
+                {
+                    return reader.ReadToEnd();
+                }
+            }
+            catch
+            {
+                // Ignore any failures
+                return null;
+            }
         }
     }
 }

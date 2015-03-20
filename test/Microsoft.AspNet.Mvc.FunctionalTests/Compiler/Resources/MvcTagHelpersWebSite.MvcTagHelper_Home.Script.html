@@ -92,5 +92,19 @@
     <script src="/site.js">
         // Globbed script tag with existing file and static src should dedupe
     </script>
+
+    <script src="/blank.js">
+        // TagHelper script with comment in body, and file version.
+    </script>
+<script>(false||document.write("<script src=\"/site.js?v=63TvZq92AUEBrc17MlVHLEn52DfhpZM4cJW8xi7Kraw\"><\/script>"));</script>
+
+    <script src="/blank.js">
+        // Fallback to globbed src with file version.
+    </script>
+<script>(false||document.write("<script src=\"/site.js?v=63TvZq92AUEBrc17MlVHLEn52DfhpZM4cJW8xi7Kraw\"><\/script>"));</script>
+
+    <script src="/site.js?v=63TvZq92AUEBrc17MlVHLEn52DfhpZM4cJW8xi7Kraw">
+        // Regular script with comment in body, and file version.
+    </script>
 </body>
 </html>
