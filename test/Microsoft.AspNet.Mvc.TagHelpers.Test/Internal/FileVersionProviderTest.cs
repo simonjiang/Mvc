@@ -15,12 +15,14 @@ namespace Microsoft.AspNet.Mvc.TagHelpers.Internal
 {
     public class FileVersionProviderTest
     {
-        [Fact]
-        public void AddsVersionToFiles_WhenCacheIsAbsent()
+        [Theory]
+        [InlineData("/hello/world", "/hello/world?v=f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk")]
+        [InlineData("/hello/world?q=test", "/hello/world?q=test&v=f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk")]
+        [InlineData("/hello/world?q=foo&bar", "/hello/world?q=foo&bar&v=f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk")]
+        public void AddsVersionToFiles_WhenCacheIsAbsent(string filePath, string expected)
         {
             // Arrange
             var appName = "testApp";
-            var filePath = "/hello/world";
             var hostingEnvironment = GetMockHostingEnvironment(filePath);
             var fileVersionProvider = new FileVersionProvider(hostingEnvironment.WebRootFileProvider, appName, null);
 
@@ -28,23 +30,28 @@ namespace Microsoft.AspNet.Mvc.TagHelpers.Internal
             var result = fileVersionProvider.AddFileVersionToPath(filePath);
 
             // Assert
-            Assert.Equal("/hello/world?v=f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk", result);
+            Assert.Equal(expected, result);
         }
 
-        [Fact]
-        public void AddsVersionToFiles_WhenAppNameIsInUrl()
+        [Theory]
+        [InlineData("/testApp/hello/world", true)]
+        [InlineData("~/testApp/hello/world", true)]
+        [InlineData("testApp/hello/world", true)]
+        [InlineData("/test/testApp/hello/world", false)]
+        [InlineData("~/test/testApp/hello/world", false)]
+        [InlineData("test/testApp/hello/world", false)]
+        public void AddsVersionToFiles_PathContainingAppName(string filePath, bool pathStartsWithAppName)
         {
             // Arrange
             var appName = "testApp";
-            var filePath = "/testApp/hello/world";
-            var hostingEnvironment = GetMockHostingEnvironment(filePath, true);
+            var hostingEnvironment = GetMockHostingEnvironment(filePath, pathStartsWithAppName);
             var fileVersionProvider = new FileVersionProvider(hostingEnvironment.WebRootFileProvider, appName , null);
 
             // Act
             var result = fileVersionProvider.AddFileVersionToPath(filePath);
 
             // Assert
-            Assert.Equal("/testApp/hello/world?v=f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk", result);
+            Assert.Equal(filePath + "?v=f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk", result);
         }
 
         [Fact]
@@ -82,12 +89,15 @@ namespace Microsoft.AspNet.Mvc.TagHelpers.Internal
             Assert.Equal("FromCache", result);
         }
 
-        [Fact]
-        public void SetsValueInCache()
+        [Theory]
+        [InlineData("/hello/world", "/hello/world")]
+        [InlineData("/testApp/hello/world", "/hello/world")]
+        [InlineData("~/testApp/hello/world", "/hello/world")]
+        [InlineData("/hello/world", "/hello/world")]
+        public void SetsValueInCache(string filePath, string watchPath)
         {
             // Arrange
             var appName = "testApp";
-            var filePath = "/hello/world";
             var trigger = new Mock<IExpirationTrigger>();
             var hostingEnvironment = GetMockHostingEnvironment(filePath);
             Mock.Get(hostingEnvironment.WebRootFileProvider)
@@ -116,14 +126,14 @@ namespace Microsoft.AspNet.Mvc.TagHelpers.Internal
             var result = fileVersionProvider.AddFileVersionToPath(filePath);
 
             // Assert
-            Assert.Equal("/hello/world?v=f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk", result);
+            Assert.Equal(filePath + "?v=f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk", result);
             cacheSetContext.VerifyAll();
             Mock.Get(cache).VerifyAll();
         }
 
         private IHostingEnvironment GetMockHostingEnvironment(
             string filePath,
-            bool pathContainsAppName = false,
+            bool pathStartsWithAppName = false,
             bool fileDoesNotExist = false)
         {
             var existingMockFile = new Mock<IFileInfo>();
@@ -139,7 +149,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers.Internal
                 .Returns(() => new MemoryStream(Encoding.UTF8.GetBytes("Hello World!")));
 
             var mockFileProvider = new Mock<IFileProvider>();
-            if (pathContainsAppName)
+            if (pathStartsWithAppName)
             {
                 mockFileProvider.Setup(fp => fp.GetFileInfo(filePath)).Returns(nonExistingMockFile.Object);
                 mockFileProvider.Setup(fp => fp.GetFileInfo(It.Is<string>(str => str != filePath)))

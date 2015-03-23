@@ -33,6 +33,8 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
         private const string SrcAttributeName = "src";
         private const string FileVersionAttributeName = "asp-file-version";
 
+        private FileVersionProvider _fileVersionProvider;
+
         private static readonly ModeAttributes<Mode>[] ModeDetails = new[] {
             // Regular src with file version alone
             ModeAttributes.Create(Mode.FileVersion, new[] { FileVersionAttributeName }),
@@ -78,8 +80,6 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
             /// </summary>
             Fallback = 2
         }
-
-        private FileVersionProvider FileVersionProvider { get; set; }
 
         /// <summary>
         /// A comma separated list of globbed file patterns of JavaScript scripts to load.
@@ -249,7 +249,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                         AppendAttribute(
                             builder,
                             SrcAttributeName, 
-                            HtmlEncoder.HtmlEncode(ShouldAddFileVersion() ? FileVersionProvider.AddFileVersionToPath(src) : src),
+                            HtmlEncoder.HtmlEncode(ShouldAddFileVersion() ? _fileVersionProvider.AddFileVersionToPath(src) : src),
                             escapteQuotes: true);
                     }
 
@@ -268,7 +268,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                                 builder,
                                 attribute.Key,
                                 HtmlEncoder.HtmlEncode(
-                                    ShouldAddFileVersion() ? FileVersionProvider.AddFileVersionToPath(src) : src),
+                                    ShouldAddFileVersion() ? _fileVersionProvider.AddFileVersionToPath(src) : src),
                                 escapteQuotes: true);
                         }
                     }
@@ -293,9 +293,9 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
 
         private void EnsureFileVersionProvider()
         {
-            if (FileVersionProvider == null)
+            if (_fileVersionProvider == null)
             {
-                FileVersionProvider = new FileVersionProvider(
+                _fileVersionProvider = new FileVersionProvider(
                     HostingEnvironment.WebRootFileProvider,
                     ApplicationEnvironment.ApplicationName,
                     Cache);
@@ -317,7 +317,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                 {
                     attributeValue = HtmlEncoder.HtmlEncode(
                         ShouldAddFileVersion() ?
-                            FileVersionProvider.AddFileVersionToPath(attribute.Value) :
+                            _fileVersionProvider.AddFileVersionToPath(attribute.Value) :
                             attributeValue);
                 }
 

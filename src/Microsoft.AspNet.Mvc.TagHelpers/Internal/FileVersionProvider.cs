@@ -46,15 +46,24 @@ namespace Microsoft.AspNet.Mvc.TagHelpers.Internal
         /// </remarks>
         public string AddFileVersionToPath(string path)
         {
+            var resolvedPath = path;
             var fileInfo = _fileProvider.GetFileInfo(path);
             if (!fileInfo.Exists)
             {
-                if (path.StartsWith("/" + _applicationName) ||
-                    path.StartsWith("~/" + _applicationName))
+                if (resolvedPath.StartsWith("/" + _applicationName, StringComparison.OrdinalIgnoreCase))
                 {
-                    fileInfo = _fileProvider.GetFileInfo(path.Split(
-                        new string[] { _applicationName }, StringSplitOptions.None)[1]);
+                    resolvedPath = resolvedPath.Substring(_applicationName.Length + 1);
                 }
+                else if (resolvedPath.StartsWith("~/" + _applicationName, StringComparison.OrdinalIgnoreCase))
+                {
+                    resolvedPath = resolvedPath.Substring(_applicationName.Length + 2);
+                }
+                else if (resolvedPath.StartsWith(_applicationName, StringComparison.OrdinalIgnoreCase))
+                {
+                    resolvedPath = resolvedPath.Substring(_applicationName.Length);
+                }
+
+                fileInfo = _fileProvider.GetFileInfo(resolvedPath);
 
                 if (!fileInfo.Exists)
                 {
@@ -67,16 +76,16 @@ namespace Microsoft.AspNet.Mvc.TagHelpers.Internal
             {
                 return _cache.GetOrSet(path, cacheGetOrSetContext =>
                 {
-                    var trigger = _fileProvider.Watch(path);
+                    var trigger = _fileProvider.Watch(resolvedPath);
                     cacheGetOrSetContext.AddExpirationTrigger(trigger);
-                    return QueryHelpers.AddQueryString(path, VersionKey, GetHashForFile(fileInfo, path));
+                    return QueryHelpers.AddQueryString(path, VersionKey, GetHashForFile(fileInfo));
                 });
             }
 
-            return QueryHelpers.AddQueryString(path, VersionKey, GetHashForFile(fileInfo, path));
+            return QueryHelpers.AddQueryString(path, VersionKey, GetHashForFile(fileInfo));
         }
 
-        private string GetHashForFile(IFileInfo fileInfo, string filePath)
+        private string GetHashForFile(IFileInfo fileInfo)
         {
             using (var sha256 = SHA256.Create())
             {

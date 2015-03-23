@@ -32,6 +32,8 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
         private const string FileVersionAttributeName = "asp-file-version";
         private const string HrefAttributeName = "href";
 
+        private FileVersionProvider _fileVersionProvider;
+
         private static readonly ModeAttributes<Mode>[] ModeDetails = new[] {
             // Regular src with file version alone
             ModeAttributes.Create(Mode.FileVersion, new[] { FileVersionAttributeName }),
@@ -83,8 +85,6 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
             /// </summary>
             Fallback = 2,
         }
-
-        private FileVersionProvider FileVersionProvider { get; set; }
 
         /// <summary>
         /// A comma separated list of globbed file patterns of CSS stylesheets to load.
@@ -255,7 +255,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                 {
                     for (var i=0; i < fallbackHrefs.Length; i++)
                     {
-                        fallbackHrefs[i] = FileVersionProvider.AddFileVersionToPath(fallbackHrefs[i]);
+                        fallbackHrefs[i] = _fileVersionProvider.AddFileVersionToPath(fallbackHrefs[i]);
                     }
                 }
 
@@ -293,9 +293,9 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
 
         private void EnsureFileVersionProvider()
         {
-            if (FileVersionProvider == null)
+            if (_fileVersionProvider == null)
             {
-                FileVersionProvider = new FileVersionProvider(
+                _fileVersionProvider = new FileVersionProvider(
                     HostingEnvironment.WebRootFileProvider,
                     ApplicationEnvironment.ApplicationName,
                     Cache);
@@ -314,7 +314,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                 {
                     attributeValue = HtmlEncoder.HtmlEncode(
                         ShouldAddFileVersion() ?
-                            FileVersionProvider.AddFileVersionToPath(attributeValue) :
+                            _fileVersionProvider.AddFileVersionToPath(attributeValue) :
                             attributeValue);
                 }
 
