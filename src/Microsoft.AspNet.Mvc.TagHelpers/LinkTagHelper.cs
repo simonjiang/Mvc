@@ -84,6 +84,8 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
             Fallback = 2,
         }
 
+        private FileVersionProvider FileVersionProvider { get; set; }
+
         /// <summary>
         /// A comma separated list of globbed file patterns of CSS stylesheets to load.
         /// The glob patterns are assessed relative to the application's 'webroot' setting.
@@ -112,7 +114,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
         /// A query string "v" with the encoded content of the file is added.
         /// </remarks>
         [HtmlAttributeName(FileVersionAttributeName)]
-        public bool FileVersion { get; set; } = false;
+        public bool? FileVersion { get; set; }
 
         /// <summary>
         /// A comma separated list of globbed file patterns of CSS stylesheets to fallback to in the case the primary
@@ -175,13 +177,11 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
         [Activate]
         protected internal IHtmlEncoder HtmlEncoder { get; set; }
 
-        // Internal for ease of use when testing.
-        protected internal GlobbingUrlBuilder GlobbingUrlBuilder { get; set; }
-        
-        protected FileVersionProvider FileVersionProvider { get; set; }
-
         [Activate]
         protected internal IApplicationEnvironment ApplicationEnvironment { get; set; }
+
+        // Internal for ease of use when testing.
+        protected internal GlobbingUrlBuilder GlobbingUrlBuilder { get; set; }
 
         /// <inheritdoc />
         public override void Process(TagHelperContext context, TagHelperOutput output)
@@ -251,11 +251,11 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
 
             if (fallbackHrefs.Any())
             {
-                if (FileVersion)
+                if (ShouldAddFileVersion())
                 {
-                    for (var i=0; i < fallbackHrefs.Count(); i++)
+                    for (var i=0; i < fallbackHrefs.Length; i++)
                     {
-                        fallbackHrefs[i] = FileVersionProvider.AddVersionToFilePath(fallbackHrefs[i]);
+                        fallbackHrefs[i] = FileVersionProvider.AddFileVersionToPath(fallbackHrefs[i]);
                     }
                 }
 
@@ -290,6 +290,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                     ViewContext.HttpContext.Request.PathBase);
             }
         }
+
         private void EnsureFileVersionProvider()
         {
             if (FileVersionProvider == null)
@@ -301,7 +302,6 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
             }
         }
 
-
         private void BuildLinkTag(IDictionary<string, string> attributes, TagHelperContent builder)
         {
             EnsureFileVersionProvider();
@@ -309,23 +309,28 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
 
             foreach (var attribute in attributes)
             {
-                var versionAttributeValue = attribute.Value;
+                var attributeValue = attribute.Value;
                 if (string.Equals(attribute.Key, HrefAttributeName, StringComparison.OrdinalIgnoreCase))
                 {
-                    versionAttributeValue = HtmlEncoder.HtmlEncode(
-                        FileVersion ?
-                            FileVersionProvider.AddVersionToFilePath(versionAttributeValue) :
-                            versionAttributeValue);
+                    attributeValue = HtmlEncoder.HtmlEncode(
+                        ShouldAddFileVersion() ?
+                            FileVersionProvider.AddFileVersionToPath(attributeValue) :
+                            attributeValue);
                 }
 
                 builder
                     .Append(attribute.Key)
                     .Append("=\"")
-                    .Append(versionAttributeValue)
+                    .Append(attributeValue)
                     .Append("\" ");
             }
 
             builder.Append("/>");
+        }
+
+        private bool ShouldAddFileVersion()
+        {
+            return FileVersion ?? false;
         }
     }
 }

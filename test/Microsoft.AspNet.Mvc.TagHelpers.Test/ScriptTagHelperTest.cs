@@ -547,7 +547,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
         }
 
         [Fact]
-        public async Task RenderScriptTags_Src_WithFileVersion()
+        public async Task RenderScriptTags_WithFileVersion()
         {
             // Arrange
             var context = MakeTagHelperContext(

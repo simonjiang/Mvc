@@ -25,7 +25,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers.Internal
             var fileVersionProvider = new FileVersionProvider(hostingEnvironment.WebRootFileProvider, appName, null);
 
             // Act
-            var result = fileVersionProvider.AddVersionToFilePath(filePath);
+            var result = fileVersionProvider.AddFileVersionToPath(filePath);
 
             // Assert
             Assert.Equal("/hello/world?v=f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk", result);
@@ -41,7 +41,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers.Internal
             var fileVersionProvider = new FileVersionProvider(hostingEnvironment.WebRootFileProvider, appName , null);
 
             // Act
-            var result = fileVersionProvider.AddVersionToFilePath(filePath);
+            var result = fileVersionProvider.AddFileVersionToPath(filePath);
 
             // Assert
             Assert.Equal("/testApp/hello/world?v=f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk", result);
@@ -57,7 +57,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers.Internal
             var fileVersionProvider = new FileVersionProvider(hostingEnvironment.WebRootFileProvider, appName, null);
 
             // Act
-            var result = fileVersionProvider.AddVersionToFilePath(filePath);
+            var result = fileVersionProvider.AddFileVersionToPath(filePath);
 
             // Assert
             Assert.Equal("http://contoso.com/hello/world", result);
@@ -76,7 +76,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers.Internal
                 GetMockCache("FromCache"));
 
             // Act
-            var result = fileVersionProvider.AddVersionToFilePath(filePath);
+            var result = fileVersionProvider.AddFileVersionToPath(filePath);
 
             // Assert
             Assert.Equal("FromCache", result);
@@ -113,7 +113,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers.Internal
                 cache);
 
             // Act
-            var result = fileVersionProvider.AddVersionToFilePath(filePath);
+            var result = fileVersionProvider.AddFileVersionToPath(filePath);
 
             // Assert
             Assert.Equal("/hello/world?v=f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk", result);

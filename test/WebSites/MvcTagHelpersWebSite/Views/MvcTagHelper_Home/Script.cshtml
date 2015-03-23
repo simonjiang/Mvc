@@ -117,5 +117,15 @@
     <script src="~/site.js" asp-file-version="true">
         // Regular script with comment in body, and file version.
     </script>
+
+    <!-- Globbed script tag with existing files and version -->
+    <script asp-src-include="**/*.js" asp-file-version="true">
+        // This comment shouldn't be emitted
+    </script>
+
+    <!-- Globbed script tag with existing file, exclude and version -->
+    <script asp-src-include="**/*.js" asp-src-exclude="**/site3.js" asp-file-version="true">
+        // This comment shouldn't be emitted
+    </script>
 </body>
 </html>

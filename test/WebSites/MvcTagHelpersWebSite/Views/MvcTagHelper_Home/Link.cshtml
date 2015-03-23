@@ -195,6 +195,9 @@
           asp-fallback-test-property="visibility"
           asp-fallback-test-value="hidden"
           asp-file-version="true" />
+
+    <!-- Globbed link tag with existing file, static href and file version -->
+    <link href="~/site.css" asp-href-include="**/*.css" rel="stylesheet" asp-file-version="true" />
 </head>
 <body>
 

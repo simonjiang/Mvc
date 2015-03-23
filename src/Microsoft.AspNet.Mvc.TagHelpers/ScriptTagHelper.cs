@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNet.Hosting;
@@ -40,7 +39,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
             // Globbed src (include only)
             ModeAttributes.Create(Mode.GlobbedSrc, new [] { SrcIncludeAttributeName }),
             // Globbed src (include & exclude)
-            ModeAttributes.Create(Mode.GlobbedSrc, new [] { SrcIncludeAttributeName, SrcExcludeAttributeName}),
+            ModeAttributes.Create(Mode.GlobbedSrc, new [] { SrcIncludeAttributeName, SrcExcludeAttributeName }),
             // Fallback with static src
             ModeAttributes.Create(
                 Mode.Fallback, new[]
@@ -80,6 +79,8 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
             Fallback = 2
         }
 
+        private FileVersionProvider FileVersionProvider { get; set; }
+
         /// <summary>
         /// A comma separated list of globbed file patterns of JavaScript scripts to load.
         /// The glob patterns are assessed relative to the application's 'webroot' setting.
@@ -108,7 +109,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
         /// A query string "v" with the encoded content of the file is added.
         /// </remarks>
         [HtmlAttributeName(FileVersionAttributeName)]
-        public bool FileVersion { get; set; } = false;
+        public bool? FileVersion { get; set; }
 
         /// <summary>
         /// A comma separated list of globbed file patterns of JavaScript scripts to fallback to in the case the
@@ -149,16 +150,14 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
         [Activate]
         protected internal IMemoryCache Cache { get; set; }
 
-        // Internal for ease of use when testing.
-        protected internal GlobbingUrlBuilder GlobbingUrlBuilder { get; set; }
-        
-        protected FileVersionProvider FileVersionProvider { get; set; }
-
         [Activate]
         protected internal IHtmlEncoder HtmlEncoder { get; set; }
 
         [Activate]
         protected internal IApplicationEnvironment ApplicationEnvironment { get; set; }
+
+        // Internal for ease of use when testing.
+        protected internal GlobbingUrlBuilder GlobbingUrlBuilder { get; set; }
 
         /// <inheritdoc />
         public override async Task ProcessAsync(TagHelperContext context, TagHelperOutput output)
@@ -247,14 +246,11 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
 
                     if (!attributes.ContainsKey(SrcAttributeName))
                     {
-                        builder
-                            .Append(" ")
-                            .Append(SrcAttributeName)
-                            .Append("=")
-                            .Append("\\\"")
-                            .Append(HtmlEncoder.HtmlEncode(
-                                        FileVersion ? FileVersionProvider.AddVersionToFilePath(src) : src))
-                            .Append("\\\"");
+                        AppendAttribute(
+                            builder,
+                            SrcAttributeName, 
+                            HtmlEncoder.HtmlEncode(ShouldAddFileVersion() ? FileVersionProvider.AddFileVersionToPath(src) : src),
+                            escapteQuotes: true);
                     }
 
                     foreach (var attribute in attributes)
@@ -264,30 +260,22 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                             var encodedKey = JavaScriptStringEncoder.Default.JavaScriptStringEncode(attribute.Key);
                             var encodedValue = JavaScriptStringEncoder.Default.JavaScriptStringEncode(attribute.Value);
 
-                            builder
-                                .Append(" ")
-                                .Append(encodedKey)
-                                .Append("=")
-                                .Append("\\\"")
-                                .Append(encodedValue)
-                                .Append("\\\"");
+                            AppendAttribute(builder, encodedKey, encodedValue, escapteQuotes: true);
                         }
                         else
                         {
-                            builder
-                                .Append(" ")
-                                .Append(attribute.Key)
-                                .Append("=")
-                                .Append("\\\"")
-                                .Append(HtmlEncoder.HtmlEncode(
-                                            FileVersion ? FileVersionProvider.AddVersionToFilePath(src) : src))
-                                .Append("\\\"");
+                            AppendAttribute(
+                                builder,
+                                attribute.Key,
+                                HtmlEncoder.HtmlEncode(
+                                    ShouldAddFileVersion() ? FileVersionProvider.AddFileVersionToPath(src) : src),
+                                escapteQuotes: true);
                         }
                     }
 
                     builder.Append("><\\/script>");
                 }
-                
+
                 builder.Append("\"));</script>");
             }
         }
@@ -324,26 +312,37 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
 
             foreach (var attribute in attributes)
             {
-                string versionedAttributeValue = attribute.Value;
+                string attributeValue = attribute.Value;
                 if (string.Equals(attribute.Key, SrcAttributeName, StringComparison.OrdinalIgnoreCase))
                 {
-                    versionedAttributeValue = HtmlEncoder.HtmlEncode(
-                        FileVersion ?
-                            FileVersionProvider.AddVersionToFilePath(attribute.Value) :
-                            versionedAttributeValue);
+                    attributeValue = HtmlEncoder.HtmlEncode(
+                        ShouldAddFileVersion() ?
+                            FileVersionProvider.AddFileVersionToPath(attribute.Value) :
+                            attributeValue);
                 }
 
-                builder
-                    .Append(" ")
-                    .Append(attribute.Key)
-                    .Append("=\"")
-                    .Append(versionedAttributeValue)
-                    .Append("\"");
+                AppendAttribute(builder, attribute.Key, attributeValue, escapteQuotes: false);
             }
 
             builder.Append(">")
                    .Append(content)
                    .Append("</script>");
         }
+
+        private bool ShouldAddFileVersion()
+        {
+            return FileVersion ?? false;
+        }
+
+        private void AppendAttribute(TagHelperContent content, string key, string value, bool escapteQuotes)
+        {
+            content
+                .Append(" ")
+                .Append(key)
+                .Append(escapteQuotes ? "=\\\"" : "=\"")
+                .Append(value)
+                .Append(escapteQuotes ? "\\\"" : "\"");
+        }
+
     }
 }
