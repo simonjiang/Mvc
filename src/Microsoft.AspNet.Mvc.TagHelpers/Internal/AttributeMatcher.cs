@@ -88,7 +88,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers.Internal
             {
                 if (!context.AllAttributes.ContainsKey(attribute) ||
                     context.AllAttributes[attribute] == null ||
-                    string.IsNullOrWhiteSpace(context.AllAttributes[attribute] as string))
+                    string.IsNullOrWhiteSpace(context.AllAttributes[attribute].ToString()))
                 {
                     // Missing attribute!
                     missingAttributes.Add(attribute);

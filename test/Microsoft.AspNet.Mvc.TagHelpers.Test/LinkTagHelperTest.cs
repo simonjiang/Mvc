@@ -16,6 +16,7 @@ using Microsoft.AspNet.Mvc.TagHelpers.Internal;
 using Microsoft.AspNet.Razor.Runtime.TagHelpers;
 using Microsoft.AspNet.Routing;
 using Microsoft.Framework.Logging;
+using Microsoft.Framework.Runtime;
 using Microsoft.Framework.WebEncoders;
 using Moq;
 using Xunit;
@@ -92,7 +93,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                         },
                         tagHelper =>
                         {
-                            tagHelper.FileVersion = "true";
+                            tagHelper.FileVersion = true;
                         }
                     },
                     {
@@ -104,7 +105,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                         tagHelper =>
                         {
                             tagHelper.HrefInclude = "*.css";
-                            tagHelper.FileVersion = "true";
+                            tagHelper.FileVersion = true;
                         }
                     },
                     {
@@ -118,7 +119,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                         {
                             tagHelper.HrefInclude = "*.css";
                             tagHelper.HrefExclude = "*.min.css";
-                            tagHelper.FileVersion = "true";
+                            tagHelper.FileVersion = true;
                         }
                     },
                     {
@@ -136,7 +137,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                             tagHelper.FallbackTestClass = "hidden";
                             tagHelper.FallbackTestProperty = "visibility";
                             tagHelper.FallbackTestValue = "hidden";
-                            tagHelper.FileVersion = "true";
+                            tagHelper.FileVersion = true;
                         }
                     },
                     {
@@ -154,7 +155,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                             tagHelper.FallbackTestClass = "hidden";
                             tagHelper.FallbackTestProperty = "visibility";
                             tagHelper.FallbackTestValue = "hidden";
-                            tagHelper.FileVersion = "true";
+                            tagHelper.FileVersion = true;
                         }
                     }
                 };
@@ -178,6 +179,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                 HtmlEncoder = new HtmlEncoder(),
                 Logger = logger.Object,
                 HostingEnvironment = hostingEnvironment,
+                ApplicationEnvironment = MakeApplicationEnvironment(),
                 ViewContext = viewContext,
             };
             setProperties(helper);
@@ -221,6 +223,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                 HtmlEncoder = new HtmlEncoder(),
                 Logger = logger.Object,
                 HostingEnvironment = hostingEnvironment,
+                ApplicationEnvironment = MakeApplicationEnvironment(),
                 ViewContext = viewContext,
                 FallbackHref = "test.css",
                 FallbackTestClass = "hidden",
@@ -324,6 +327,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
             {
                 Logger = logger.Object,
                 HostingEnvironment = hostingEnvironment,
+                ApplicationEnvironment = MakeApplicationEnvironment(),
                 ViewContext = viewContext
             };
             setProperties(helper);
@@ -349,6 +353,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
             {
                 Logger = logger.Object,
                 HostingEnvironment = hostingEnvironment,
+                ApplicationEnvironment = MakeApplicationEnvironment(),
                 ViewContext = viewContext
             };
 
@@ -388,6 +393,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                 GlobbingUrlBuilder = globbingUrlBuilder.Object,
                 Logger = logger.Object,
                 HostingEnvironment = hostingEnvironment,
+                ApplicationEnvironment = MakeApplicationEnvironment(),
                 ViewContext = viewContext,
                 HrefInclude = "**/*.css"
             };
@@ -428,6 +434,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                 GlobbingUrlBuilder = globbingUrlBuilder.Object,
                 Logger = logger.Object,
                 HostingEnvironment = hostingEnvironment,
+                ApplicationEnvironment = MakeApplicationEnvironment(),
                 ViewContext = viewContext,
                 HrefInclude = "**/*.css"
             };
@@ -464,16 +471,17 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                 HtmlEncoder = new TestHtmlEncoder(),
                 Logger = logger.Object,
                 HostingEnvironment = hostingEnvironment,
+                ApplicationEnvironment = MakeApplicationEnvironment(),
                 ViewContext = viewContext,
                 HrefInclude = "**/*.css",
-                FileVersion = "true"
+                FileVersion = true
             };
 
             // Act
             helper.Process(context, output);
 
             // Assert
-            Assert.Equal("<link href=\"HtmlEncode[[/css/site.css]]?v=5juh_W1DkEaXNDo3Ps-5NFcSHkssUa-XJ4xDHo7IVUU\"" +
+            Assert.Equal("<link href=\"HtmlEncode[[/css/site.css?v=f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk]]\"" +
                 " rel=\"stylesheet\" />", output.Content.GetContent());
         }
 
@@ -506,18 +514,19 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                 GlobbingUrlBuilder = globbingUrlBuilder.Object,
                 Logger = logger.Object,
                 HostingEnvironment = hostingEnvironment,
+                ApplicationEnvironment = MakeApplicationEnvironment(),
                 ViewContext = viewContext,
                 HrefInclude = "**/*.css",
-                FileVersion = "true"
+                FileVersion = true
             };
 
             // Act
             helper.Process(context, output);
             
             // Assert
-            Assert.Equal("<link href=\"HtmlEncode[[/css/site.css]]?v=5juh_W1DkEaXNDo3Ps-5NFcSHkssUa-XJ4xDHo7IVUU\"" +
-                " rel=\"stylesheet\" /><link href=\"HtmlEncode[[/base.css]]" +
-                "?v=5juh_W1DkEaXNDo3Ps-5NFcSHkssUa-XJ4xDHo7IVUU\" rel=\"stylesheet\" />", output.Content.GetContent());
+            Assert.Equal("<link href=\"HtmlEncode[[/css/site.css?v=f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk]]\"" +
+                " rel=\"stylesheet\" /><link href=\"HtmlEncode[[/base.css" +
+                "?v=f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk]]\" rel=\"stylesheet\" />", output.Content.GetContent());
         }
 
         private static ViewContext MakeViewContext()
@@ -566,6 +575,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
             emptyDirectoryContents.Setup(dc => dc.GetEnumerator())
                 .Returns(Enumerable.Empty<IFileInfo>().GetEnumerator());
             var mockFile = new Mock<IFileInfo>();
+            mockFile.SetupGet(f => f.Exists).Returns(true);
             mockFile
                 .Setup(m => m.CreateReadStream())
                 .Returns(() => new MemoryStream(Encoding.UTF8.GetBytes("Hello World!")));
@@ -578,6 +588,13 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
             hostingEnvironment.Setup(h => h.WebRootFileProvider).Returns(mockFileProvider.Object);
 
             return hostingEnvironment.Object;
+        }
+
+        private static IApplicationEnvironment MakeApplicationEnvironment(string applicationName = "testApplication")
+        {
+            var applicationEnvironment = new Mock<IApplicationEnvironment>();
+            applicationEnvironment.Setup(a => a.ApplicationName).Returns(applicationName);
+            return applicationEnvironment.Object;
         }
 
         private class TestHtmlEncoder : IHtmlEncoder

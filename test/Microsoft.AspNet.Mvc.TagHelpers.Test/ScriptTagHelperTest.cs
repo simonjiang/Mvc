@@ -16,6 +16,7 @@ using Microsoft.AspNet.Mvc.TagHelpers.Internal;
 using Microsoft.AspNet.Razor.Runtime.TagHelpers;
 using Microsoft.AspNet.Routing;
 using Microsoft.Framework.Logging;
+using Microsoft.Framework.Runtime;
 using Microsoft.Framework.WebEncoders;
 using Moq;
 using Xunit;
@@ -112,7 +113,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                         },
                         tagHelper =>
                         {
-                            tagHelper.FileVersion = "true";
+                            tagHelper.FileVersion = true;
                         }
                     },
                     {
@@ -124,7 +125,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                         tagHelper =>
                         {
                             tagHelper.SrcInclude = "*.js";
-                            tagHelper.FileVersion = "true";
+                            tagHelper.FileVersion = true;
                         }
                     },
                     {
@@ -138,7 +139,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                         {
                             tagHelper.SrcInclude = "*.js";
                             tagHelper.SrcExclude = "*.min.js";
-                            tagHelper.FileVersion = "true";
+                            tagHelper.FileVersion = true;
                         }
                     },
                     {
@@ -152,7 +153,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                         {
                             tagHelper.FallbackSrc = "test.js";
                             tagHelper.FallbackTestExpression = "isavailable()";
-                            tagHelper.FileVersion = "true";
+                            tagHelper.FileVersion = true;
                         }
                     },
                     {
@@ -166,7 +167,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                         {
                             tagHelper.FallbackSrcInclude = "*.css";
                             tagHelper.FallbackTestExpression = "isavailable()";
-                            tagHelper.FileVersion = "true";
+                            tagHelper.FileVersion = true;
                         }
                     },
                     {
@@ -182,7 +183,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                             tagHelper.FallbackSrc = "test.js";
                             tagHelper.FallbackSrcInclude = "*.css";
                             tagHelper.FallbackTestExpression = "isavailable()";
-                            tagHelper.FileVersion = "true";
+                            tagHelper.FileVersion = true;
                         }
                     },
                     {
@@ -198,7 +199,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                             tagHelper.FallbackSrcInclude = "*.css";
                             tagHelper.FallbackSrcExclude = "*.min.css";
                             tagHelper.FallbackTestExpression = "isavailable()";
-                            tagHelper.FileVersion = "true";
+                            tagHelper.FileVersion = true;
                         }
                     }
                 };
@@ -222,6 +223,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                 HtmlEncoder = new HtmlEncoder(),
                 Logger = logger,
                 HostingEnvironment = hostingEnvironment,
+                ApplicationEnvironment = MakeApplicationEnvironment(),
                 ViewContext = viewContext,
             };
             setProperties(helper);
@@ -311,6 +313,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
             {
                 Logger = logger.Object,
                 HostingEnvironment = hostingEnvironment,
+                ApplicationEnvironment = MakeApplicationEnvironment(),
                 ViewContext = viewContext
             };
             setProperties(helper);
@@ -339,6 +342,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
             {
                 Logger = logger,
                 HostingEnvironment = hostingEnvironment,
+                ApplicationEnvironment = MakeApplicationEnvironment(),
                 ViewContext = viewContext
             };
             setProperties(helper);
@@ -375,7 +379,8 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
             var helper = new ScriptTagHelper
             {
                 Logger = logger,
-                ViewContext = viewContext
+                ViewContext = viewContext,
+                ApplicationEnvironment = MakeApplicationEnvironment(),
             };
 
             // Act
@@ -398,7 +403,8 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
             var helper = new ScriptTagHelper
             {
                 Logger = logger,
-                ViewContext = viewContext
+                ViewContext = viewContext,
+                ApplicationEnvironment = MakeApplicationEnvironment(),
             };
 
             // Act
@@ -449,6 +455,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                 Logger = logger,
                 ViewContext = viewContext,
                 HostingEnvironment = hostingEnvironment,
+                ApplicationEnvironment = MakeApplicationEnvironment(),
                 FallbackSrc = "~/blank.js",
                 FallbackTestExpression = "http://www.example.com/blank.js",
             };
@@ -487,6 +494,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                 GlobbingUrlBuilder = globbingUrlBuilder.Object,
                 Logger = logger.Object,
                 HostingEnvironment = hostingEnvironment,
+                ApplicationEnvironment = MakeApplicationEnvironment(),
                 ViewContext = viewContext,
                 SrcInclude = "**/*.js",
                 HtmlEncoder = new HtmlEncoder()
@@ -524,6 +532,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                 GlobbingUrlBuilder = globbingUrlBuilder.Object,
                 Logger = logger.Object,
                 HostingEnvironment = hostingEnvironment,
+                ApplicationEnvironment = MakeApplicationEnvironment(),
                 ViewContext = viewContext,
                 SrcInclude = "**/*.js",
                 HtmlEncoder = new TestHtmlEncoder()
@@ -560,8 +569,9 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
             {
                 Logger = logger.Object,
                 HostingEnvironment = hostingEnvironment,
+                ApplicationEnvironment = MakeApplicationEnvironment(),
                 ViewContext = viewContext,
-                FileVersion = "true",
+                FileVersion = true,
                 HtmlEncoder = new TestHtmlEncoder()
             };
 
@@ -570,7 +580,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
 
             // Assert
             Assert.Equal(
-                "<script src=\"HtmlEncode[[/js/site.js]]?v=5juh_W1DkEaXNDo3Ps-5NFcSHkssUa-XJ4xDHo7IVUU\">" +
+                "<script src=\"HtmlEncode[[/js/site.js?v=f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk]]\">" +
                 "</script>", output.Content.GetContent());
         }
 
@@ -599,10 +609,11 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
             {
                 Logger = logger.Object,
                 HostingEnvironment = hostingEnvironment,
+                ApplicationEnvironment = MakeApplicationEnvironment(),
                 ViewContext = viewContext,
                 FallbackSrc = "fallback.js",
                 FallbackTestExpression = "isavailable()",
-                FileVersion = "true",
+                FileVersion = true,
                 HtmlEncoder = new TestHtmlEncoder()
             };
 
@@ -611,9 +622,9 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
 
             // Assert
             Assert.Equal(
-                "<script src=\"HtmlEncode[[/js/site.js]]?v=5juh_W1DkEaXNDo3Ps-5NFcSHkssUa-XJ4xDHo7IVUU\">" +
-                "</script>\r\n<script>(isavailable()||document.write(\"<script src=\\\"HtmlEncode[[fallback.js]]" +
-                "?v=5juh_W1DkEaXNDo3Ps-5NFcSHkssUa-XJ4xDHo7IVUU\\\"><\\/script>\"));</script>",
+                "<script src=\"HtmlEncode[[/js/site.js?v=f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk]]\">" +
+                "</script>\r\n<script>(isavailable()||document.write(\"<script src=\\\"HtmlEncode[[fallback.js" +
+                "?v=f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk]]\\\"><\\/script>\"));</script>",
                 output.Content.GetContent());
         }
 
@@ -643,9 +654,10 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                 GlobbingUrlBuilder = globbingUrlBuilder.Object,
                 Logger = logger.Object,
                 HostingEnvironment = hostingEnvironment,
+                ApplicationEnvironment = MakeApplicationEnvironment(),
                 ViewContext = viewContext,
                 SrcInclude = "*.js",
-                FileVersion = "true",
+                FileVersion = true,
                 HtmlEncoder = new TestHtmlEncoder()
             };
 
@@ -653,8 +665,8 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
             await helper.ProcessAsync(context, output);
 
             // Assert
-            Assert.Equal("<script src=\"HtmlEncode[[/js/site.js]]?v=5juh_W1DkEaXNDo3Ps-5NFcSHkssUa-XJ4xDHo7IVUU\">" +
-                "</script><script src=\"HtmlEncode[[/common.js]]?v=5juh_W1DkEaXNDo3Ps-5NFcSHkssUa-XJ4xDHo7IVUU\">" +
+            Assert.Equal("<script src=\"HtmlEncode[[/js/site.js?v=f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk]]\">" +
+                "</script><script src=\"HtmlEncode[[/common.js?v=f4OxZX_x_FO5LcGBSKHWXfwtSx-j1ncoSt3SABJtkGk]]\">" +
                 "</script>", output.Content.GetContent());
         }
 
@@ -709,6 +721,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
             emptyDirectoryContents.Setup(dc => dc.GetEnumerator())
                 .Returns(Enumerable.Empty<IFileInfo>().GetEnumerator());
             var mockFile = new Mock<IFileInfo>();
+            mockFile.SetupGet(f => f.Exists).Returns(true);
             mockFile
                 .Setup(m => m.CreateReadStream())
                 .Returns(() => new MemoryStream(Encoding.UTF8.GetBytes("Hello World!")));
@@ -721,6 +734,13 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
             hostingEnvironment.Setup(h => h.WebRootFileProvider).Returns(mockFileProvider.Object);
 
             return hostingEnvironment.Object;
+        }
+
+        private static IApplicationEnvironment MakeApplicationEnvironment(string applicationName = "testApplication")
+        {
+            var applicationEnvironment = new Mock<IApplicationEnvironment>();
+            applicationEnvironment.Setup(a => a.ApplicationName).Returns(applicationName);
+            return applicationEnvironment.Object;
         }
 
         private class TestHtmlEncoder : IHtmlEncoder

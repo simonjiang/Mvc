@@ -4,16 +4,13 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
-using Microsoft.AspNet.FileProviders;
 using Microsoft.AspNet.Hosting;
 using Microsoft.AspNet.Mvc.TagHelpers.Internal;
 using Microsoft.AspNet.Razor.Runtime.TagHelpers;
-using Microsoft.AspNet.WebUtilities;
 using Microsoft.Framework.Caching.Memory;
 using Microsoft.Framework.Logging;
+using Microsoft.Framework.Runtime;
 using Microsoft.Framework.WebEncoders;
 
 namespace Microsoft.AspNet.Mvc.TagHelpers
@@ -33,6 +30,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
         private const string FallbackTestValueAttributeName = "asp-fallback-test-value";
         private const string FallbackJavaScriptResourceName = "compiler/resources/LinkTagHelper_FallbackJavaScript.js";
         private const string FileVersionAttributeName = "asp-file-version";
+        private const string HrefAttributeName = "href";
 
         private static readonly ModeAttributes<Mode>[] ModeDetails = new[] {
             // Regular src with file version alone
@@ -110,8 +108,11 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
         /// <summary>
         /// Value indicating if file version should be appended to the href urls.
         /// </summary>
+        /// <remarks>
+        /// A query string "v" with the encoded content of the file is added.
+        /// </remarks>
         [HtmlAttributeName(FileVersionAttributeName)]
-        public string FileVersion { get; set; }
+        public bool FileVersion { get; set; } = false;
 
         /// <summary>
         /// A comma separated list of globbed file patterns of CSS stylesheets to fallback to in the case the primary
@@ -176,6 +177,11 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
 
         // Internal for ease of use when testing.
         protected internal GlobbingUrlBuilder GlobbingUrlBuilder { get; set; }
+        
+        protected FileVersionProvider FileVersionProvider { get; set; }
+
+        [Activate]
+        protected internal IApplicationEnvironment ApplicationEnvironment { get; set; }
 
         /// <inheritdoc />
         public override void Process(TagHelperContext context, TagHelperOutput output)
@@ -200,13 +206,10 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
 
             var builder = new DefaultTagHelperContent();
 
-            if (mode == Mode.FileVersion)
+            if (mode == Mode.Fallback && string.IsNullOrEmpty(HrefInclude) || mode == Mode.FileVersion)
             {
-                BuildLinkTag(attributes, builder);
-            }
-            else if (mode == Mode.Fallback && string.IsNullOrEmpty(HrefInclude))
-            {
-                // No globbing to do, just build a <link /> tag to match the original one in the source file
+                // No globbing to do, just build a <link /> tag to match the original one in the source file.
+                // Or just add file version to the link tag.
                 BuildLinkTag(attributes, builder);
             }
             else
@@ -228,14 +231,14 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
         {
             // Build a <link /> tag for each matched href as well as the original one in the source file
             string staticHref;
-            attributes.TryGetValue("href", out staticHref);
+            attributes.TryGetValue(HrefAttributeName, out staticHref);
 
             EnsureGlobbingUrlBuilder();
             var urls = GlobbingUrlBuilder.BuildUrlList(staticHref, HrefInclude, HrefExclude);
 
             foreach (var url in urls)
             {
-                attributes["href"] = url;
+                attributes[HrefAttributeName] = url;
                 BuildLinkTag(attributes, builder);
             }
         }
@@ -248,11 +251,11 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
 
             if (fallbackHrefs.Any())
             {
-                if (FileVersion == "true")
+                if (FileVersion)
                 {
                     for (var i=0; i < fallbackHrefs.Count(); i++)
                     {
-                        fallbackHrefs[i] += "?v=" + GetFileContentEncodedString(fallbackHrefs[i]);
+                        fallbackHrefs[i] = FileVersionProvider.AddVersionToFilePath(fallbackHrefs[i]);
                     }
                 }
 
@@ -287,81 +290,42 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                     ViewContext.HttpContext.Request.PathBase);
             }
         }
+        private void EnsureFileVersionProvider()
+        {
+            if (FileVersionProvider == null)
+            {
+                FileVersionProvider = new FileVersionProvider(
+                    HostingEnvironment.WebRootFileProvider,
+                    ApplicationEnvironment.ApplicationName,
+                    Cache);
+            }
+        }
+
 
         private void BuildLinkTag(IDictionary<string, string> attributes, TagHelperContent builder)
         {
+            EnsureFileVersionProvider();
             builder.Append("<link ");
 
             foreach (var attribute in attributes)
             {
-                if (attribute.Key == "href")
+                var versionAttributeValue = attribute.Value;
+                if (string.Equals(attribute.Key, HrefAttributeName, StringComparison.OrdinalIgnoreCase))
                 {
-                    AppendHref(builder, attribute.Key, attribute.Value);
+                    versionAttributeValue = HtmlEncoder.HtmlEncode(
+                        FileVersion ?
+                            FileVersionProvider.AddVersionToFilePath(versionAttributeValue) :
+                            versionAttributeValue);
                 }
-                else
-                {
-                    builder.Append(
-                        string.Format(CultureInfo.InvariantCulture, "{0}=\"{1}\" ", attribute.Key, attribute.Value));
-                }
+
+                builder
+                    .Append(attribute.Key)
+                    .Append("=\"")
+                    .Append(versionAttributeValue)
+                    .Append("\" ");
             }
 
             builder.Append("/>");
-        }
-
-        private void AppendHref(TagHelperContent content, string hrefKey, string hrefValue)
-        {
-            string formatter = "{0}=\"{1}";
-            string fileVersion = string.Empty;
-            if (FileVersion == "true")
-            {
-                fileVersion = GetFileContentEncodedString(hrefValue);
-                // This is the case if there was any exception thrown when reading the file.
-                if (fileVersion != string.Empty)
-                {
-                    formatter += "?v={2}";
-                }
-            }
-
-            formatter += "\" ";
-
-            content.Append(
-                string.Format(
-                    CultureInfo.InvariantCulture,
-                    formatter,
-                    hrefKey,
-                    HtmlEncoder.HtmlEncode(hrefValue),
-                    fileVersion));
-        }
-
-        private string GetFileContentEncodedString(string filePath)
-        {
-            var fileContents = ReadFileContents(HostingEnvironment.WebRootFileProvider.GetFileInfo(filePath));
-            if (fileContents != null)
-            {
-                using (var sha256 = SHA256.Create())
-                {
-                    var hash = sha256.ComputeHash(System.Text.Encoding.Unicode.GetBytes(fileContents));
-                    return WebEncoders.Base64UrlEncode(hash);
-                }
-            }
-
-            return string.Empty;
-        }
-
-        private string ReadFileContents(IFileInfo fileInfo)
-        {
-            try
-            {
-                using (var reader = new StreamReader(fileInfo.CreateReadStream()))
-                {
-                    return reader.ReadToEnd();
-                }
-            }
-            catch
-            {
-                // Ignore any failures
-                return null;
-            }
         }
     }
 }
