@@ -15,6 +15,8 @@ using Microsoft.AspNet.Mvc.Rendering;
 using Microsoft.AspNet.Mvc.TagHelpers.Internal;
 using Microsoft.AspNet.Razor.Runtime.TagHelpers;
 using Microsoft.AspNet.Routing;
+using Microsoft.Framework.Caching.Memory;
+using Microsoft.Framework.Expiration.Interfaces;
 using Microsoft.Framework.Logging;
 using Microsoft.Framework.Runtime;
 using Microsoft.Framework.WebEncoders;
@@ -181,6 +183,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                 HostingEnvironment = hostingEnvironment,
                 ApplicationEnvironment = MakeApplicationEnvironment(),
                 ViewContext = viewContext,
+                Cache = MakeCache()
             };
             setProperties(helper);
 
@@ -228,7 +231,8 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                 FallbackHref = "test.css",
                 FallbackTestClass = "hidden",
                 FallbackTestProperty = "visibility",
-                FallbackTestValue = "hidden"
+                FallbackTestValue = "hidden",
+                Cache = MakeCache(),
             };
 
             // Act
@@ -328,7 +332,8 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                 Logger = logger.Object,
                 HostingEnvironment = hostingEnvironment,
                 ApplicationEnvironment = MakeApplicationEnvironment(),
-                ViewContext = viewContext
+                ViewContext = viewContext,
+                Cache = MakeCache(),
             };
             setProperties(helper);
 
@@ -354,7 +359,8 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                 Logger = logger.Object,
                 HostingEnvironment = hostingEnvironment,
                 ApplicationEnvironment = MakeApplicationEnvironment(),
-                ViewContext = viewContext
+                ViewContext = viewContext,
+                Cache = MakeCache(),
             };
 
             // Act
@@ -395,7 +401,8 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                 HostingEnvironment = hostingEnvironment,
                 ApplicationEnvironment = MakeApplicationEnvironment(),
                 ViewContext = viewContext,
-                HrefInclude = "**/*.css"
+                HrefInclude = "**/*.css",
+                Cache = MakeCache(),
             };
 
             // Act
@@ -436,7 +443,8 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                 HostingEnvironment = hostingEnvironment,
                 ApplicationEnvironment = MakeApplicationEnvironment(),
                 ViewContext = viewContext,
-                HrefInclude = "**/*.css"
+                HrefInclude = "**/*.css",
+                Cache = MakeCache(),
             };
 
             // Act
@@ -474,7 +482,8 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                 ApplicationEnvironment = MakeApplicationEnvironment(),
                 ViewContext = viewContext,
                 HrefInclude = "**/*.css",
-                FileVersion = true
+                FileVersion = true,
+                Cache = MakeCache(),
             };
 
             // Act
@@ -517,7 +526,8 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                 ApplicationEnvironment = MakeApplicationEnvironment(),
                 ViewContext = viewContext,
                 HrefInclude = "**/*.css",
-                FileVersion = true
+                FileVersion = true,
+                Cache = MakeCache(),
             };
 
             // Act
@@ -595,6 +605,36 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
             var applicationEnvironment = new Mock<IApplicationEnvironment>();
             applicationEnvironment.Setup(a => a.ApplicationName).Returns(applicationName);
             return applicationEnvironment.Object;
+        }
+
+        private static IMemoryCache MakeCache(object result = null)
+        {
+            var cache = new Mock<IMemoryCache>();
+            cache.CallBase = true;
+            cache.Setup(c => c.TryGetValue(It.IsAny<string>(), It.IsAny<IEntryLink>(), out result))
+                .Returns(result != null);
+
+            var cacheSetContext = new Mock<ICacheSetContext>();
+            cacheSetContext.Setup(c => c.AddExpirationTrigger(It.IsAny<IExpirationTrigger>()));
+            cache
+                .Setup(
+                    c => c.Set(
+                        /*key*/ It.IsAny<string>(),
+                        /*link*/ It.IsAny<IEntryLink>(),
+                        /*state*/ It.IsAny<object>(),
+                        /*create*/ It.IsAny<Func<ICacheSetContext, object>>()))
+                .Returns((
+                    string input,
+                    IEntryLink entryLink,
+                    object state,
+                    Func<ICacheSetContext, object> create) =>
+                {
+                    {
+                        cacheSetContext.Setup(c => c.State).Returns(state);
+                        return create(cacheSetContext.Object);
+                    }
+                });
+            return cache.Object;
         }
 
         private class TestHtmlEncoder : IHtmlEncoder

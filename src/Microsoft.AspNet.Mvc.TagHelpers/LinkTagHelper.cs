@@ -72,7 +72,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
         private enum Mode
         {
             /// <summary>
-            /// Just adding a file version for the src.
+            /// Adding file version to the generated urls.
             /// </summary>
             FileVersion = 0,
             /// <summary>
@@ -111,7 +111,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
         /// Value indicating if file version should be appended to the href urls.
         /// </summary>
         /// <remarks>
-        /// A query string "v" with the encoded content of the file is added.
+        /// If <c>true</c> then a query string "v" with the encoded content of the file is added.
         /// </remarks>
         [HtmlAttributeName(FileVersionAttributeName)]
         public bool? FileVersion { get; set; }
@@ -249,7 +249,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
             var fallbackHrefs =
                 GlobbingUrlBuilder.BuildUrlList(FallbackHref, FallbackHrefInclude, FallbackHrefExclude).ToArray();
 
-            if (fallbackHrefs.Any())
+            if (fallbackHrefs.Length > 0)
             {
                 if (ShouldAddFileVersion())
                 {

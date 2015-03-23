@@ -24,12 +24,12 @@ namespace Microsoft.AspNet.Mvc.TagHelpers.Internal
         /// Creates a new instance of <see cref="FileVersionProvider"/>.
         /// </summary>
         /// <param name="fileProvider">The file provider to get and watch files.</param>
-        /// <param name="applicationName">Name of the applicaiton.</param>
-        /// <param name="cache">Cache where versioned urls of files are cached.</param>
+        /// <param name="applicationName">Name of the application.</param>
+        /// <param name="cache"><see cref="IMemoryCache"/> where versioned urls of files are cached.</param>
         public FileVersionProvider(
             [NotNull] IFileProvider fileProvider,
             [NotNull] string applicationName,
-            IMemoryCache cache)
+            [NotNull] IMemoryCache cache)
         {
             _fileProvider = fileProvider;
             _applicationName = applicationName;
@@ -72,17 +72,12 @@ namespace Microsoft.AspNet.Mvc.TagHelpers.Internal
                 }
             }
 
-            if (_cache != null)
+            return _cache.GetOrSet(path, cacheGetOrSetContext =>
             {
-                return _cache.GetOrSet(path, cacheGetOrSetContext =>
-                {
-                    var trigger = _fileProvider.Watch(resolvedPath);
-                    cacheGetOrSetContext.AddExpirationTrigger(trigger);
-                    return QueryHelpers.AddQueryString(path, VersionKey, GetHashForFile(fileInfo));
-                });
-            }
-
-            return QueryHelpers.AddQueryString(path, VersionKey, GetHashForFile(fileInfo));
+                var trigger = _fileProvider.Watch(resolvedPath);
+                cacheGetOrSetContext.AddExpirationTrigger(trigger);
+                return QueryHelpers.AddQueryString(path, VersionKey, GetHashForFile(fileInfo));
+            });
         }
 
         private string GetHashForFile(IFileInfo fileInfo)
