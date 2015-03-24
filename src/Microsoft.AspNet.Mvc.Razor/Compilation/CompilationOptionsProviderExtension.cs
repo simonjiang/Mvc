@@ -32,5 +32,24 @@ namespace Microsoft.AspNet.Mvc.Razor
                                                               applicationEnvironment.Configuration)
                                           .ToCompilationSettings(applicationEnvironment.RuntimeFramework);
         }
+
+        /// <summary>
+        /// Parses the <see cref="ICompilerOptions"/> for a project specified by <see cref="IProjectContext"/>
+        /// and returns a <see cref="CompilationSettings"/> used for Roslyn compilation.
+        /// </summary>
+        /// <param name="compilerOptionsProvider">
+        /// A <see cref="ICompilerOptionsProvider"/> that reads compiler options.
+        /// </param>
+        /// <param name="projectContext">The <see cref="IProjectContext"/> for the application being compiled.</param>
+        /// <returns>The <see cref="CompilationSettings"/> for the application being compiled.</returns>
+        public static CompilationSettings GetCompilationSettings(
+            [NotNull] this ICompilerOptionsProvider compilerOptionsProvider,
+            [NotNull] IProjectContext projectContext)
+        {
+            return compilerOptionsProvider.GetCompilerOptions(projectContext.Name,
+                                                              projectContext.TargetFramework,
+                                                              projectContext.Configuration)
+                                          .ToCompilationSettings(projectContext.TargetFramework);
+        }
     }
 }
