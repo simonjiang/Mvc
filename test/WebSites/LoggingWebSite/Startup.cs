@@ -11,7 +11,9 @@ namespace LoggingWebSite
         // Set up application services
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddElm(options =>
+            services.AddElm();
+
+            services.ConfigureElm(options =>
             {
                 // We want to log for all log levels and loggers
                 options.Filter = (loggerName, logLevel) => true;
@@ -22,7 +24,7 @@ namespace LoggingWebSite
 
         public void Configure(IApplicationBuilder app)
         {
-            var configuration = app.GetTestConfiguration();
+            app.UseCultureReplacer();
 
             app.Map("/logs", (appBuilder) =>
             {
